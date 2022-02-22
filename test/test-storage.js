@@ -1,16 +1,15 @@
 import expect from "expect.js";
 import sinon from "sinon";
-import {open} from "sqlite";
-import sqlite from "sqlite3";
+import {Database} from "@zingle/sqlite";
 import {Sqlite3Storage} from "@zingle/smtpd";
+
 
 describe("Sqlite3Storage", () => {
   let db, storage;
 
   beforeEach(async () => {
     const filename = ":memory:";
-    const driver = sqlite.Database;
-    db = await open({filename, driver});
+    db = new Database(filename);
     storage = new Sqlite3Storage(db);
     await Sqlite3Storage.initialize(db);
   });
@@ -35,12 +34,12 @@ describe("Sqlite3Storage", () => {
 
       user = {email, uri, forwardURL};
 
-      db.all = sinon.spy(async () => {});
+      db.run = sinon.spy(async () => {});
     });
 
     it("should write value to DB", async () => {
       await storage.setItem(user.email, user);
-      expect(storage.db.all.calledOnce).to.be(true);
+      expect(storage.db.run.calledOnce).to.be(true);
     });
 
     it("should error on non-string keyName", async () => {

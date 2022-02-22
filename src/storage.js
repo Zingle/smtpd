@@ -1,4 +1,4 @@
-import SQL from "sql-template-strings";
+import SQL from "@zingle/sqlt";
 
 export class Sqlite3Storage {
   constructor(db) {
@@ -6,7 +6,7 @@ export class Sqlite3Storage {
   }
 
   static async initialize(db) {
-    await db.exec(`
+    await db.run(`
       create table if not exists user (
         email varchar not null primary key,
         uri varchar not null,
@@ -41,7 +41,7 @@ export class Sqlite3Storage {
       throw new TypeError("keyValue must be an object");
     }
 
-    await this.db.all(SQL`
+    await this.db.run(SQL`
       insert into user (email, uri, forward_url)
       values (${keyName}, ${keyValue.uri}, ${keyValue.forwardURL||null})
     `);
@@ -52,7 +52,7 @@ export class Sqlite3Storage {
       throw new TypeError("keyName must be a string");
     }
 
-    await this.db.all(SQL`
+    await this.db.run(SQL`
       delete from user where email = ${keyName}
     `);
   }

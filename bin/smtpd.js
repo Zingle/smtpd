@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 
 import {join} from "path";
-import {open} from "sqlite";
-import Sqlite3 from "sqlite3";
+import {Database} from "@zingle/sqlite";
 import {Sqlite3Storage} from "@zingle/smtpd";
 import {readConfig} from "@zingle/smtpd";
 
@@ -19,10 +18,7 @@ async function start(process) {
 
 async function makeStorage({dir}) {
   const filename = join(dir, "user.db");
-  const driver = Sqlite3.Database;
-  const db = await open({filename, driver});
-
+  const db = new Database(filename);
   await Sqlite3Storage.initialize(db);
-
   return new Sqlite3Storage(db);
 }
