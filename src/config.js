@@ -20,5 +20,10 @@ export async function read({env, argv}) {
 }
 
 const SMTPDConfigSchema = {
-  dir: process.cwd()
+  dir: process.cwd(),
+  http: {
+    user: String,
+    pass: String,
+    port: 2500
+  }
 };
