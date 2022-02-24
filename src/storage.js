@@ -1,6 +1,6 @@
 import SQL from "@zingle/sqlt";
 
-export class Sqlite3Storage {
+export class Storage {
   constructor(db) {
     this.db = db;
   }
@@ -17,13 +17,13 @@ export class Sqlite3Storage {
     return db;
   }
 
-  async getItem(keyName) {
-    if (typeof keyName !== "string") {
-      throw new TypeError("keyName must be a string");
+  async getUser(email) {
+    if (typeof email !== "string") {
+      throw new TypeError("email must be a string");
     }
 
     const user = await this.db.get(SQL`
-      select * from user where email = ${keyName}
+      select * from user where email = ${email}
     `);
 
     if (user) {
@@ -34,26 +34,26 @@ export class Sqlite3Storage {
     return user;
   }
 
-  async setItem(keyName, keyValue) {
-    if (typeof keyName !== "string") {
-      throw new TypeError("keyName must be a string");
-    } else if (typeof keyValue !== "object") {
-      throw new TypeError("keyValue must be an object");
+  async setUser(email, user) {
+    if (typeof email !== "string") {
+      throw new TypeError("email must be a string");
+    } else if (typeof user !== "object") {
+      throw new TypeError("user must be an object");
     }
 
     await this.db.run(SQL`
       insert into user (email, uri, forward_url)
-      values (${keyName}, ${keyValue.uri}, ${keyValue.forwardURL||null})
+      values (${email}, ${user.uri}, ${user.forwardURL||null})
     `);
   }
 
-  async removeItem(keyName) {
-    if (typeof keyName !== "string") {
-      throw new TypeError("keyName must be a string");
+  async removeUser(email) {
+    if (typeof email !== "string") {
+      throw new TypeError("email must be a string");
     }
 
     await this.db.run(SQL`
-      delete from user where email = ${keyName}
+      delete from user where email = ${email}
     `);
   }
 }

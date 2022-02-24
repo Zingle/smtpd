@@ -3,7 +3,7 @@
 import http from "http";
 import {join} from "path";
 import {Database} from "@zingle/sqlite";
-import {Sqlite3Storage} from "@zingle/smtpd";
+import {Storage} from "@zingle/smtpd";
 import {readConfig} from "@zingle/smtpd";
 import {requestListener} from "@zingle/smtpd";
 
@@ -14,16 +14,16 @@ if (!await start(process)) {
 
 async function start(process) {
   const config = await readConfig(process);
-  const userdb = await createStorage(config);
-  const httpServer = createHTTPServer({...config.http, userdb});
+  const storage = await createStorage(config);
+  const httpServer = createHTTPServer({...config.http, storage});
 
   httpServer.listen();
 
   return true;
 }
 
-function createHTTPServer({user, pass, port, userdb}) {
-  const listener = requestListener({user, pass, userdb});
+function createHTTPServer({user, pass, port, storage}) {
+  const listener = requestListener({user, pass, storage});
   const server = http.createServer(listener);
   const {listen} = server;
 
@@ -40,6 +40,6 @@ function createHTTPServer({user, pass, port, userdb}) {
 async function createStorage({dir}) {
   const filename = join(dir, "user.db");
   const db = new Database(filename);
-  await Sqlite3Storage.initialize(db);
-  return new Sqlite3Storage(db);
+  await Storage.initialize(db);
+  return new Storage(db);
 }

@@ -1,17 +1,16 @@
 import expect from "expect.js";
 import sinon from "sinon";
 import {Database} from "@zingle/sqlite";
-import {Sqlite3Storage} from "@zingle/smtpd";
+import {Storage} from "@zingle/smtpd";
 
-
-describe("Sqlite3Storage", () => {
+describe("Storage", () => {
   let db, storage;
 
   beforeEach(async () => {
     const filename = ":memory:";
     db = new Database(filename);
-    storage = new Sqlite3Storage(db);
-    await Sqlite3Storage.initialize(db);
+    storage = new Storage(db);
+    await Storage.initialize(db);
   });
 
   afterEach(async () => {
@@ -24,7 +23,7 @@ describe("Sqlite3Storage", () => {
     });
   });
 
-  describe(".setItem(keyName, keyValue)", () => {
+  describe(".setUser(email, user)", () => {
     let user;
 
     beforeEach(() => {
@@ -38,14 +37,14 @@ describe("Sqlite3Storage", () => {
     });
 
     it("should write value to DB", async () => {
-      await storage.setItem(user.email, user);
+      await storage.setUser(user.email, user);
       expect(storage.db.run.calledOnce).to.be(true);
     });
 
     it("should error on non-string keyName", async () => {
       return new Promise(async (resolve, reject) => {
         try {
-          await storage.setItem(43, user);
+          await storage.setUser(43, user);
           reject(new Error("expected thrown error"));
         } catch (err) {
           resolve();
@@ -56,7 +55,7 @@ describe("Sqlite3Storage", () => {
     it("should error on non-object keyValue", async () => {
       return new Promise(async (resolve, reject) => {
         try {
-          await storage.setItem(user.email, '{"bar":42}');
+          await storage.setUser(user.email, '{"bar":42}');
           reject(new Error("expected thrown error"));
         } catch (err) {
           resolve();
@@ -65,7 +64,7 @@ describe("Sqlite3Storage", () => {
     });
   });
 
-  describe(".getItem(keyName)", () => {
+  describe(".getUser(email)", () => {
     let user;
 
     beforeEach(() => {
@@ -76,9 +75,9 @@ describe("Sqlite3Storage", () => {
     });
 
     it("should read value from storage", async () => {
-      await storage.setItem(user.email, user);
+      await storage.setUser(user.email, user);
 
-      const value = await storage.getItem(user.email);
+      const value = await storage.getUser(user.email);
 
       expect(value).to.be.an("object");
       expect(value.email).to.be(user.email);
@@ -89,7 +88,7 @@ describe("Sqlite3Storage", () => {
     it("should error on non-string keyName", async () => {
       return new Promise(async (resolve, reject) => {
         try {
-          await storage.getItem(43);
+          await storage.getUser(43);
           reject(new Error("expected thrown error"));
         } catch (err) {
           resolve();
@@ -98,12 +97,12 @@ describe("Sqlite3Storage", () => {
     });
 
     it("should return null on missing value", async () => {
-      const value = await storage.getItem(user.email);
+      const value = await storage.getUser(user.email);
       expect(value).to.be(undefined);
     });
   });
 
-  describe(".removeItem(keyName)", () => {
+  describe(".removeUser(email)", () => {
     let user;
 
     beforeEach(() => {
@@ -114,16 +113,16 @@ describe("Sqlite3Storage", () => {
     });
 
     it("should delete value from storage", async () => {
-      await storage.setItem(user.email, user);
-      await storage.removeItem(user.email);
-      const value = await storage.getItem(user.email);
+      await storage.setUser(user.email, user);
+      await storage.removeUser(user.email);
+      const value = await storage.getUser(user.email);
       expect(value).to.be(undefined);
     });
 
     it("should error on non-string keyName", async () => {
       return new Promise(async (resolve, reject) => {
         try {
-          await storage.removeItem(43);
+          await storage.removeUser(43);
           reject(new Error("expected thrown error"));
         } catch (err) {
           resolve();

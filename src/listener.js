@@ -4,7 +4,7 @@ import {semantics} from "express-semantic-status";
 import fullURL from "express-full-url";
 import Email from "email-addresses";
 
-export function requestListener({user, pass, userdb}) {
+export function requestListener({user, pass, storage}) {
   const app = express();
   const unauthorizedResponse = "Unauthorized\n";
 
@@ -29,11 +29,11 @@ export function requestListener({user, pass, userdb}) {
 
     // TODO: make this safer with locked updates
     // TODO: for now, just use primitive eventual consistency
-    if (await userdb.getItem(address)) {
+    if (await storage.getUser(address)) {
       return res.sendConflict(`email already exists: ${address}`);
     }
 
-    await userdb.setItem(address, {
+    await storage.setUser(address, {
       email: address, uri,
       forwardURL: forwardURL ? new URL(forwardURL) : undefined
     });
@@ -43,7 +43,7 @@ export function requestListener({user, pass, userdb}) {
 
   app.get("/user/:email", async (req, res) => {
     const {email} = req.params;
-    const user = await userdb.getItem(email);
+    const user = await storage.getUser(email);
 
     if (user) res.json(user);
     else res.sendNotFound();
@@ -52,10 +52,10 @@ export function requestListener({user, pass, userdb}) {
   app.delete("/user/:email", async (req, res) => {
     const {email} = req.params;
     const uri = `/user/${email}`;
-    const user = await userdb.getItem(uri);
+    const user = await storage.getUser(uri);
 
     if (user) {
-      await userdb.removeItem(uri);
+      await storage.removeUser(uri);
       res.sendAccepted();
     } else {
       console.log(res);
