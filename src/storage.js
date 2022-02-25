@@ -8,20 +8,23 @@ export class Storage {
   static async initialize(db) {
     await db.run(`
       create table if not exists user (
-        email varchar not null primary key,
-        uri varchar not null,
-        forward_url varchar
-      )
+        email text not null primary key,
+        uri text not null,
+        forward_url text
+      );
     `);
 
     return db;
   }
 
-  async getUser(email) {
-    if (typeof email !== "string") {
-      throw new TypeError("email must be a string");
-    }
+  async addUser(email, user) {
+    await this.db.run(SQL`
+      insert into user (email, uri, forward_url)
+      values (${email}, ${user.uri}, ${user.forwardURL||null})
+    `);
+  }
 
+  async getUser(email) {
     const user = await this.db.get(SQL`
       select * from user where email = ${email}
     `);
@@ -34,24 +37,7 @@ export class Storage {
     return user;
   }
 
-  async setUser(email, user) {
-    if (typeof email !== "string") {
-      throw new TypeError("email must be a string");
-    } else if (typeof user !== "object") {
-      throw new TypeError("user must be an object");
-    }
-
-    await this.db.run(SQL`
-      insert into user (email, uri, forward_url)
-      values (${email}, ${user.uri}, ${user.forwardURL||null})
-    `);
-  }
-
   async removeUser(email) {
-    if (typeof email !== "string") {
-      throw new TypeError("email must be a string");
-    }
-
     await this.db.run(SQL`
       delete from user where email = ${email}
     `);

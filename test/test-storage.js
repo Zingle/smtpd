@@ -23,7 +23,7 @@ describe("Storage", () => {
     });
   });
 
-  describe(".setUser(email, user)", () => {
+  describe(".addUser(email, user)", () => {
     let user;
 
     beforeEach(() => {
@@ -37,30 +37,8 @@ describe("Storage", () => {
     });
 
     it("should write value to DB", async () => {
-      await storage.setUser(user.email, user);
+      await storage.addUser(user.email, user);
       expect(storage.db.run.calledOnce).to.be(true);
-    });
-
-    it("should error on non-string keyName", async () => {
-      return new Promise(async (resolve, reject) => {
-        try {
-          await storage.setUser(43, user);
-          reject(new Error("expected thrown error"));
-        } catch (err) {
-          resolve();
-        }
-      });
-    });
-
-    it("should error on non-object keyValue", async () => {
-      return new Promise(async (resolve, reject) => {
-        try {
-          await storage.setUser(user.email, '{"bar":42}');
-          reject(new Error("expected thrown error"));
-        } catch (err) {
-          resolve();
-        }
-      });
     });
   });
 
@@ -75,7 +53,7 @@ describe("Storage", () => {
     });
 
     it("should read value from storage", async () => {
-      await storage.setUser(user.email, user);
+      await storage.addUser(user.email, user);
 
       const value = await storage.getUser(user.email);
 
@@ -83,17 +61,6 @@ describe("Storage", () => {
       expect(value.email).to.be(user.email);
       expect(value.uri).to.be(user.uri);
       expect(value.forwardURL).to.be(user.forwardURL);
-    });
-
-    it("should error on non-string keyName", async () => {
-      return new Promise(async (resolve, reject) => {
-        try {
-          await storage.getUser(43);
-          reject(new Error("expected thrown error"));
-        } catch (err) {
-          resolve();
-        }
-      });
     });
 
     it("should return null on missing value", async () => {
@@ -113,21 +80,10 @@ describe("Storage", () => {
     });
 
     it("should delete value from storage", async () => {
-      await storage.setUser(user.email, user);
+      await storage.addUser(user.email, user);
       await storage.removeUser(user.email);
       const value = await storage.getUser(user.email);
       expect(value).to.be(undefined);
-    });
-
-    it("should error on non-string keyName", async () => {
-      return new Promise(async (resolve, reject) => {
-        try {
-          await storage.removeUser(43);
-          reject(new Error("expected thrown error"));
-        } catch (err) {
-          resolve();
-        }
-      });
     });
   });
 });
