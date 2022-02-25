@@ -13,13 +13,18 @@ if (!await start(process)) {
 }
 
 async function start(process) {
-  const config = await readConfig(process);
-  const storage = await createStorage(config);
-  const httpServer = createHTTPServer({...config.http, storage});
+  try {
+    const config = await readConfig(process);
+    const storage = await createStorage(config);
+    const httpServer = createHTTPServer({...config.http, storage});
 
-  httpServer.listen();
+    httpServer.listen();
 
-  return true;
+    return true;
+  } catch (err) {
+    console.error(err.message);
+    return false;
+  }
 }
 
 function createHTTPServer({user, pass, port, storage}) {
