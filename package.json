@@ -20,13 +20,18 @@
   "homepage": "https://github.com/Zingle/smtpd#readme",
   "dependencies": {
     "@zingle/shape": "^0.0.2",
-    "@zingle/sqlite": "^0.0.2",
+    "@zingle/sqlite": "^0.0.4",
     "@zingle/sqlt": "^0.0.1",
+    "bytesized": "^2.0.0",
+    "concat-stream": "^2.0.0",
     "email-addresses": "^5.0.0",
     "express": "^4.17.3",
     "express-basic-auth": "^1.2.1",
     "express-full-url": "^0.0.2",
-    "express-semantic-status": "^0.0.2"
+    "express-semantic-status": "^0.0.2",
+    "mailparser": "^3.4.0",
+    "mkdirp": "^1.0.4",
+    "smtp-server": "^3.10.0"
   },
   "devDependencies": {
     "expect.js": "^0.3.1",

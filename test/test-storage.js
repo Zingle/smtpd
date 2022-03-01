@@ -23,7 +23,7 @@ describe("Storage", () => {
     });
   });
 
-  describe(".addUser(email, user)", () => {
+  describe(".addUser(user)", () => {
     let user;
 
     beforeEach(() => {
@@ -37,7 +37,7 @@ describe("Storage", () => {
     });
 
     it("should write value to DB", async () => {
-      await storage.addUser(user.email, user);
+      await storage.addUser(user);
       expect(storage.db.run.calledOnce).to.be(true);
     });
   });
@@ -53,7 +53,7 @@ describe("Storage", () => {
     });
 
     it("should read value from storage", async () => {
-      await storage.addUser(user.email, user);
+      await storage.addUser(user);
 
       const value = await storage.getUser(user.email);
 
@@ -80,7 +80,7 @@ describe("Storage", () => {
     });
 
     it("should delete value from storage", async () => {
-      await storage.addUser(user.email, user);
+      await storage.addUser(user);
       await storage.removeUser(user.email);
       const value = await storage.getUser(user.email);
       expect(value).to.be(undefined);

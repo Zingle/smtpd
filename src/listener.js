@@ -1,8 +1,89 @@
+import {promises as fs} from "fs";
+import {join} from "path";
+import {randomBytes} from "crypto";
+import concat from "concat-stream";
+import mkdirp from "mkdirp";
+import {simpleParser} from "mailparser";
 import express from "express";
 import basic from "express-basic-auth";
 import {semantics} from "express-semantic-status";
 import fullURL from "express-full-url";
 import Email from "email-addresses";
+
+export function dataListener({dir, storage}) {
+  const inbox = join(dir, "inbox");
+
+  return function onData(stream, session, done) {
+    const {id} = session;
+
+    stream.on("error", err => {
+      console.warn(`[${id}] error receiving mail`);
+      console.error(err);
+      done(err);
+    });
+
+    stream.pipe(concat(async (buffer) => {
+      let message;
+
+      try {
+        message = await simpleParser(String(buffer));
+      } catch (err) {
+        console.warn(`[${id}] error parsing mail`);
+        console.error(process.env.DEBUG ? err : err.message);
+        return done(err);
+      }
+
+      try {
+        const email = message.to.value[0].address;
+        const {attachments} = message;
+
+        console.debug(`[${id}] parsed mail for ${email}`);
+
+        const user = await storage.getUser(email);
+        const {forwardURL} = user;
+        const mid = randomBytes(16).toString("hex");
+
+        await mkdirp(inbox);
+
+        for (let i=1,length=attachments.length; i<=length; i++) {
+          const {content} = attachments[i-1];
+          const path = join(inbox, `${mid}.${i}`);
+
+          console.debug(`[${id}] saving attachment for ${email} to ${path}`);
+
+          await fs.writeFile(path, content);
+          await storage.addFile(path, forwardURL);
+
+          console.info(`[${id}] saved attachment for ${email} to ${path}`);
+        }
+
+        console.debug(`[${id}] received mail for ${email}`);
+        done();
+      } catch (err) {
+        console.warn(`[${id}] error processing mail`);
+        console.error(process.env.DEBUG ? err : err.message);
+        done(err);
+      }
+    }));
+  }
+}
+
+export function receiptListener({storage}) {
+  return async function onRcptTo(address, session, done) {
+    const {id} = session;
+    const {address: email} = address;
+
+    console.debug(`[${id}] delivery arrived for ${email}`);
+
+    if (await storage.getUser(email)) {
+      console.info(`[${id}] accepting delivery for ${email}`);
+      done();
+    } else {
+      console.info(`[${id}] rejecting delivery for ${email}`);
+      done(new Error("recipient rejected"));
+    }
+  };
+}
 
 export function requestListener({user, pass, storage}) {
   const app = express();
@@ -33,7 +114,7 @@ export function requestListener({user, pass, storage}) {
       return res.sendConflict(`email already exists: ${address}`);
     }
 
-    await storage.setUser(address, {
+    await storage.addUser({
       email: address, uri,
       forwardURL: forwardURL ? new URL(forwardURL) : undefined
     });
