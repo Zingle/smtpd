@@ -24,7 +24,6 @@ export class Storage {
   }
 
   async addFile(path, forwardURL) {
-    console.debug("addFile:", path, forwardURL);
     await this.db.run(SQL`
       insert into file (path, forward_url)
       values (${path}, ${forwardURL})
@@ -34,21 +33,14 @@ export class Storage {
   async addUser(user) {
     await this.db.run(SQL`
       insert into user (email, uri, forward_url)
-      values (${user.email}, ${user.uri}, ${user.forwardURL})
+      values (${user.email}, ${user.uri}, ${user.forward_url})
     `);
   }
 
   async getUser(email) {
-    const user = await this.db.get(SQL`
+    return this.db.get(SQL`
       select * from user where email = ${email}
     `);
-
-    if (user) {
-      user.forwardURL = user.forward_url;
-      delete user.forward_url;
-    }
-
-    return user;
   }
 
   async removeFile(path) {

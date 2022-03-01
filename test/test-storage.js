@@ -29,9 +29,9 @@ describe("Storage", () => {
     beforeEach(() => {
       const email = "foo_user@example.com";
       const uri = `/user/${email}`;
-      const forwardURL = "http://example.com/foo";
+      const forward_url = "http://example.com/foo";
 
-      user = {email, uri, forwardURL};
+      user = {email, uri, forward_url};
 
       db.run = sinon.spy(async () => {});
     });
@@ -48,8 +48,8 @@ describe("Storage", () => {
     beforeEach(() => {
       const email = "foo_user@example.com";
       const uri = `/user/${email}`;
-      const forwardURL = "http://example.com:4567/foo";
-      user = {email, uri, forwardURL};
+      const forward_url = "http://example.com:4567/foo";
+      user = {email, uri, forward_url};
     });
 
     it("should read value from storage", async () => {
@@ -60,7 +60,7 @@ describe("Storage", () => {
       expect(value).to.be.an("object");
       expect(value.email).to.be(user.email);
       expect(value.uri).to.be(user.uri);
-      expect(value.forwardURL).to.be(user.forwardURL);
+      expect(value.forward_url).to.be(user.forward_url);
     });
 
     it("should return null on missing value", async () => {
@@ -75,8 +75,8 @@ describe("Storage", () => {
     beforeEach(() => {
       const email = "foo_user@example.com";
       const uri = `/user/${email}`;
-      const forwardURL = "http://example.com:4567/foo";
-      user = {email, uri, forwardURL};
+      const forward_url = "http://example.com:4567/foo";
+      user = {email, uri, forward_url};
     });
 
     it("should delete value from storage", async () => {

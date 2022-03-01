@@ -40,7 +40,7 @@ export function dataListener({dir, storage}) {
         console.debug(`[${id}] parsed mail for ${email}`);
 
         const user = await storage.getUser(email);
-        const {forwardURL} = user;
+        const {forward_url} = user;
         const mid = randomBytes(16).toString("hex");
 
         await mkdirp(inbox);
@@ -52,7 +52,7 @@ export function dataListener({dir, storage}) {
           console.debug(`[${id}] saving attachment for ${email} to ${path}`);
 
           await fs.writeFile(path, content);
-          await storage.addFile(path, forwardURL);
+          await storage.addFile(path, forward_url);
 
           console.info(`[${id}] saved attachment for ${email} to ${path}`);
         }
@@ -95,7 +95,7 @@ export function requestListener({user, pass, storage}) {
   app.use(fullURL());
 
   app.post("/user", async (req, res) => {
-    const {email, forwardURL, ...extra} = req.body;
+    const {email, forward_url, ...extra} = req.body;
     const uri = `/user/${email}`;
     const extras = Object.keys(extra).join(", ");
     const {address} = Email.parseOneAddress(email) || {};
@@ -104,7 +104,7 @@ export function requestListener({user, pass, storage}) {
     if (!email) return res.sendBadRequest("email required");
     if (!address) return res.sendBadRequest("invalid email");
     if (extras) return res.sendBadRequest(`invalid key(s): ${extras}`);
-    if (forwardURL) try { new URL(forwardURL); } catch (err) {
+    if (forward_url) try { new URL(forward_url); } catch (err) {
       return res.sendBadRequest("invalid forward URL");
     }
 
@@ -116,7 +116,7 @@ export function requestListener({user, pass, storage}) {
 
     await storage.addUser({
       email: address, uri,
-      forwardURL: forwardURL ? new URL(forwardURL) : undefined
+      forward_url: forward_url ? new URL(forward_url) : undefined
     });
 
     res.sendSeeOther(new URL(uri, req.getFullURL()));
