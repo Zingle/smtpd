@@ -22,6 +22,7 @@
     "@zingle/shape": "^0.0.2",
     "@zingle/sqlite": "^0.0.4",
     "@zingle/sqlt": "^0.0.1",
+    "@zingle/task": "^0.0.1",
     "bytesized": "^2.0.0",
     "concat-stream": "^2.0.0",
     "email-addresses": "^5.0.0",
@@ -31,6 +32,7 @@
     "express-semantic-status": "^0.0.2",
     "mailparser": "^3.4.0",
     "mkdirp": "^1.0.4",
+    "node-fetch": "^3.2.1",
     "smtp-server": "^3.10.0"
   },
   "devDependencies": {

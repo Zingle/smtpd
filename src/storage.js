@@ -38,9 +38,27 @@ export class Storage {
   }
 
   async getUser(email) {
-    return this.db.get(SQL`
+    const user = await this.db.get(SQL`
       select * from user where email = ${email}
     `);
+
+    return user;
+  }
+
+  async *lockExpired(olderThan) {
+    const sql = SQL`select * from file where locked_at < ${olderThan}`;
+    yield* this.db.each(sql);
+  }
+
+  async lockFile(path) {
+    const result = await this.db.run(SQL`
+      update file
+      set locked_at = datetime()
+      where path = ${path}
+        and locked_at is null
+    `);
+
+    return result.changes > 0;
   }
 
   async removeFile(path) {
@@ -53,5 +71,24 @@ export class Storage {
     await this.db.run(SQL`
       delete from user where email = ${email}
     `);
+  }
+
+  async unlockFile(path, lockedAt=null) {
+    const andLockedAt = lockedAt
+      ? SQL` and locked_at = ${lockedAt}`
+      : SQL``;
+
+    const result = await this.db.run(SQL`
+      update file
+      set locked_at = null
+      where path = ${path}${andLockedAt}
+    `);
+
+    return result.changes > 0;
+  }
+
+  async *unlockedFiles() {
+    const sql = SQL`select * from file where locked_at is null`;
+    yield* this.db.each(sql);
   }
 }

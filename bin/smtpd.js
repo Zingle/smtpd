@@ -5,7 +5,8 @@ import {join} from "path";
 import {SMTPServer} from "smtp-server";
 import {Database} from "@zingle/sqlite";
 import {Storage} from "@zingle/smtpd";
-import {readConfig} from "@zingle/smtpd";
+import Task from "@zingle/task";
+import {readConfig, forwarder} from "@zingle/smtpd";
 import {dataListener, receiptListener, requestListener} from "@zingle/smtpd";
 
 if (!await start(process)) {
@@ -22,15 +23,33 @@ async function start(process) {
     const storage = await createStorage(config);
     const httpServer = createHTTPServer({...config.http, storage, dir});
     const smtpServer = createSMTPServer({...config.smtp, storage, dir});
+    const forwarder = createForwarder({storage});
 
     httpServer.listen();
     smtpServer.listen();
+    forwarder.start();
+
+    process.on("SIGTERM", () => {
+      console.info("shutting down after receiving SIGTERM");
+      httpServer.close();
+      smtpServer.close();
+      forwarder.stop();
+    });
 
     return true;
   } catch (err) {
     console.error(process.env.DEBUG ? err : err.message);
     return false;
   }
+}
+
+function createForwarder({storage, interval=300}) {
+  const forward = forwarder({storage});
+  const task = Task(forward, {interval: 1000*interval});
+
+  task.on("error", err => console.error(process.env.DEBUG ? err : err.message));
+
+  return task;;
 }
 
 function createHTTPServer({user, pass, port, storage}) {
