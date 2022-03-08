@@ -20,7 +20,7 @@ async function start(process) {
 
     const config = await readConfig(process);
     const {dir} = config;
-    const storage = await createStorage(config);
+    const storage = await createStorage({dir});
     const httpServer = createHTTPServer({...config.http, storage, dir});
     const smtpServer = createSMTPServer({...config.smtp, storage, dir});
     const forwarder = createForwarder({storage});
