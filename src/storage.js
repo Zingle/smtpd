@@ -10,7 +10,7 @@ export class Storage {
       create table if not exists user (
         email text not null primary key,
         uri text not null,
-        forward_url text
+        forward_url text not null
       );
 
       create table if not exists file (

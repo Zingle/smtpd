@@ -104,7 +104,8 @@ export function requestListener({user, pass, storage}) {
     if (!email) return res.sendBadRequest("email required");
     if (!address) return res.sendBadRequest("invalid email");
     if (extras) return res.sendBadRequest(`invalid key(s): ${extras}`);
-    if (forward_url) try { new URL(forward_url); } catch (err) {
+
+    try { new URL(forward_url); } catch (err) {
       return res.sendBadRequest("invalid forward URL");
     }
 
@@ -116,7 +117,7 @@ export function requestListener({user, pass, storage}) {
 
     await storage.addUser({
       email: address, uri,
-      forward_url: forward_url ? new URL(forward_url) : undefined
+      forward_url: new URL(forward_url)
     });
 
     res.sendSeeOther(new URL(uri, req.getFullURL()));
