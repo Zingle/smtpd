@@ -14,7 +14,7 @@ export class Storage {
       );
 
       create table if not exists file (
-        path text not null,
+        name text not null,
         forward_url text not null,
         locked_at text
       );
@@ -23,10 +23,10 @@ export class Storage {
     return db;
   }
 
-  async addFile(path, forwardURL) {
+  async addFile(name, forwardURL) {
     await this.db.run(SQL`
-      insert into file (path, forward_url)
-      values (${path}, ${forwardURL})
+      insert into file (name, forward_url)
+      values (${name}, ${forwardURL})
     `);
   }
 
@@ -37,12 +37,16 @@ export class Storage {
     `);
   }
 
+  async getFile(name) {
+    return await this.db.get(SQL`
+      select * from file where name = ${name}
+    `);
+  }
+
   async getUser(email) {
-    const user = await this.db.get(SQL`
+    return await this.db.get(SQL`
       select * from user where email = ${email}
     `);
-
-    return user;
   }
 
   async *lockExpired(olderThan) {
@@ -50,20 +54,20 @@ export class Storage {
     yield* this.db.each(sql);
   }
 
-  async lockFile(path) {
+  async lockFile(name) {
     const result = await this.db.run(SQL`
       update file
       set locked_at = datetime()
-      where path = ${path}
+      where name = ${name}
         and locked_at is null
     `);
 
     return result.changes > 0;
   }
 
-  async removeFile(path) {
+  async removeFile(name) {
     await this.db.run(SQL`
-      delete from file where path = ${path}
+      delete from file where name = ${name}
     `);
   }
 
@@ -73,7 +77,7 @@ export class Storage {
     `);
   }
 
-  async unlockFile(path, lockedAt=null) {
+  async unlockFile(name, lockedAt=null) {
     const andLockedAt = lockedAt
       ? SQL` and locked_at = ${lockedAt}`
       : SQL``;
@@ -81,7 +85,7 @@ export class Storage {
     const result = await this.db.run(SQL`
       update file
       set locked_at = null
-      where path = ${path}${andLockedAt}
+      where name = ${name}${andLockedAt}
     `);
 
     return result.changes > 0;

@@ -54,8 +54,8 @@ function createForwarder({storage, interval=300}) {
   return task;
 }
 
-function createHTTPServer({port, storage, secret}) {
-  const listener = requestListener({storage, secret});
+function createHTTPServer({dir, port, storage, secret}) {
+  const listener = requestListener({dir, storage, secret});
   const server = http.createServer(listener);
   const {listen} = server;
 

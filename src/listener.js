@@ -41,18 +41,19 @@ export function dataListener({dir, storage}) {
 
         const user = await storage.getUser(email);
         const {forward_url} = user;
-        const mid = randomBytes(16).toString("hex");
+        const msgid = randomBytes(4).toString("hex");
 
         await mkdirp(inbox);
 
         for (let i=1,length=attachments.length; i<=length; i++) {
+          const name = msgid + randomBytes(4).toString("hex");
           const {content} = attachments[i-1];
-          const path = join(inbox, `${mid}.${i}`);
+          const path = join(inbox, name);
 
           console.debug(`[${id}] saving attachment for ${email} to ${path}`);
 
           await fs.writeFile(path, content);
-          await storage.addFile(path, forward_url);
+          await storage.addFile(name, forward_url);
 
           console.info(`[${id}] saved attachment for ${email} to ${path}`);
         }
@@ -85,7 +86,8 @@ export function receiptListener({storage}) {
   };
 }
 
-export function requestListener({storage, secret}) {
+export function requestListener({dir, storage, secret}) {
+  const inbox = join(dir, "inbox");
   const app = express();
   const unauthorizedResponse = "Unauthorized\n";
 
@@ -93,6 +95,42 @@ export function requestListener({storage, secret}) {
   app.use(jwt({secret}));
   app.use(express.json());
   app.use(fullURL());
+
+  app.get("/file/:sig", async (req, res) => {
+    const name = secret.verifyMessage(req.params.sig);
+
+    if (name) {
+      const file = await storage.getFile(name);
+
+      if (file) {
+        const path = join(inbox, name);
+        res.sendFile(path);
+      } else {
+        res.sendNotFound();
+      }
+    } else {
+      res.sendUnauthorized();
+    }
+  });
+
+  app.delete("/file/:sig", async (req, res) => {
+    const name = secret.verifyMessage(req.params.sig);
+
+    if (name) {
+      const file = await storage.getFile(name);
+
+      if (file) {
+        const path = join(inbox, name);
+        await fs.unlink(path);
+        await storage.removeFile(name);
+        res.sendNoContent();
+      } else {
+        res.sendNotFound();
+      }
+    } else {
+      res.sendUnauthorized();
+    }
+  });
 
   app.post("/user", authorize(), async (req, res) => {
     const {email, forward_url, ...extra} = req.body;
