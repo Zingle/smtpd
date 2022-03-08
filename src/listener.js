@@ -85,16 +85,16 @@ export function receiptListener({storage}) {
   };
 }
 
-export function requestListener({user, pass, storage}) {
+export function requestListener({storage, secret}) {
   const app = express();
   const unauthorizedResponse = "Unauthorized\n";
 
-  app.use(basic({users: {[user]: pass}, unauthorizedResponse}))
-  app.use(express.json());
   app.use(semantics());
+  app.use(jwt({secret}));
+  app.use(express.json());
   app.use(fullURL());
 
-  app.post("/user", async (req, res) => {
+  app.post("/user", authorize(), async (req, res) => {
     const {email, forward_url, ...extra} = req.body;
     const uri = `/user/${email}`;
     const extras = Object.keys(extra).join(", ");
@@ -102,6 +102,7 @@ export function requestListener({user, pass, storage}) {
 
     if (!req.is("json")) return res.sendUnsupportedMediaType();
     if (!email) return res.sendBadRequest("email required");
+    if (!forward_url) return res.sendBadRequest("forward_url required");
     if (!address) return res.sendBadRequest("invalid email");
     if (extras) return res.sendBadRequest(`invalid key(s): ${extras}`);
 
@@ -123,7 +124,7 @@ export function requestListener({user, pass, storage}) {
     res.sendSeeOther(new URL(uri, req.getFullURL()));
   });
 
-  app.get("/user/:email", async (req, res) => {
+  app.get("/user/:email", authorize(), async (req, res) => {
     const {email} = req.params;
     const user = await storage.getUser(email);
 
@@ -131,7 +132,7 @@ export function requestListener({user, pass, storage}) {
     else res.sendNotFound();
   });
 
-  app.delete("/user/:email", async (req, res) => {
+  app.delete("/user/:email", authorize(), async (req, res) => {
     const {email} = req.params;
     const uri = `/user/${email}`;
     const user = await storage.getUser(uri);
@@ -150,4 +151,31 @@ export function requestListener({user, pass, storage}) {
   });
 
   return app;
+
+  function jwt({secret}) {
+    return function jwt(req, res, next) {
+      req.jwt = false;
+
+      const auth = req.get("Authorization") || "";
+      const [scheme, creds] = (auth||"").split(" ");
+
+      if (scheme.toLowerCase() === "bearer") {
+        const token = secret.verifyToken(creds);
+        req.jwt = token;
+      }
+
+      next();
+    }
+  }
+
+  function authorize() {
+    return function authorize(req, res, next) {
+      if (req.jwt) return next();
+      if (req.socket.remoteAddress === "127.0.0.1") return next();
+      if (req.socket.remoteAddress === "::1") return next();
+
+      // not authorized
+      res.sendUnauthorized();
+    }
+  }
 }

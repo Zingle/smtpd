@@ -1,4 +1,5 @@
 import {hostname} from "os";
+import {randomBytes} from "crypto";
 import bytesized from "bytesized";
 import {open, validate} from "@zingle/shape";
 
@@ -23,9 +24,8 @@ export async function read({env, argv}) {
 
 const SMTPDConfigSchema = {
   dir: process.cwd(),
+  secret: randomBytes(8).toString("hex"),
   http: {
-    user: String,
-    pass: String,
     port: 2500
   },
   smtp: {

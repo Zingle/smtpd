@@ -3,6 +3,7 @@
 import http from "http";
 import {join} from "path";
 import {SMTPServer} from "smtp-server";
+import {Secret} from "@zingle/secret";
 import {Database} from "@zingle/sqlite";
 import {Storage} from "@zingle/smtpd";
 import Task from "@zingle/task";
@@ -21,8 +22,9 @@ async function start(process) {
     const config = await readConfig(process);
     const {dir} = config;
     const storage = await createStorage({dir});
-    const httpServer = createHTTPServer({...config.http, storage, dir});
-    const smtpServer = createSMTPServer({...config.smtp, storage, dir});
+    const secret = new Secret(config.secret);
+    const httpServer = createHTTPServer({...config.http, dir, secret, storage});
+    const smtpServer = createSMTPServer({...config.smtp, dir, storage});
     const forwarder = createForwarder({storage});
 
     httpServer.listen();
@@ -52,8 +54,8 @@ function createForwarder({storage, interval=300}) {
   return task;
 }
 
-function createHTTPServer({user, pass, port, storage}) {
-  const listener = requestListener({user, pass, storage});
+function createHTTPServer({port, storage, secret}) {
+  const listener = requestListener({storage, secret});
   const server = http.createServer(listener);
   const {listen} = server;
 
