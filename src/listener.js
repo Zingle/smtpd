@@ -140,7 +140,6 @@ export function requestListener({user, pass, storage}) {
       await storage.removeUser(uri);
       res.sendAccepted();
     } else {
-      console.log(res);
       res.sendNotFound();
     }
   });
