@@ -49,7 +49,7 @@ function createForwarder({storage, interval=300}) {
 
   task.on("error", err => console.error(process.env.DEBUG ? err : err.message));
 
-  return task;;
+  return task;
 }
 
 function createHTTPServer({user, pass, port, storage}) {
