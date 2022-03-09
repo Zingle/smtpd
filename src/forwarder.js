@@ -1,70 +1,36 @@
-import {promises as fs, createReadStream} from "fs";
 import fetch from "node-fetch";
 
-export default function forwarder({storage, expiry=120}) {
+const MINS = 60 * 1000;   // convert minutes to milliseconds
+
+export default function forwarder({dir, storage, expiry=120}) {
   return async function forward() {
-    console.debug("checking for expired locks");
-    await clearLocks({storage, expiry});
+    const olderThan = new Date(Date.now() - expiry*MINS);
 
-    console.debug("checking for files to forward");
-    let forwarded = 0;
+    for await (const file of storage.staleFiles(olderThan)) {
+      const {name, forward_url, touched_at} = file;
 
-    for await (const {path, forward_url} of storage.unlockedFiles()) {
-      console.debug(`locking ${path}`);
-
-      if (await storage.lockFile(path)) {
+      if (await storage.touchFile(name, touched_at)) {
         try {
-          console.debug(`forwarding ${path} to ${forward_url}`);
-          await forwardFile(path, forward_url);
-          console.info(`removing forwarded file from ${path}`);
-          await fs.unlink(path);
-          await storage.removeFile(path);
-          forwarded++;
-        } finally {
-          console.debug(`unlocking ${path}`);
-          await storage.unlockFile(path);
-          console.debug(`unlocked ${path}`);
+          console.debug(`forwarding ${name} to ${forward_url}`);
+
+          const uri = `/file/${secret.signMessage(name)}`;
+          const method = "POST";
+          const headers = {"Content-Type": "text/uri-list"};
+          const body = uri + "\r\n";
+          const res = await fetch(forward_url, {method, headers, body});
+
+          if (res.ok) {
+            console.debug(`sent link for ${uri} to ${forward_url}`);
+            forwarded++;
+          } else {
+            throw new Error(`could not send link to ${forward_url}`);
+          }
+        } catch (err) {
+          console.error(err);
         }
-      } else {
-        console.debug(`could not lock ${path}`);
       }
     }
 
     console.debug(`forwarded ${forwarded} files`);
   }
-}
-
-async function clearLocks({storage, expiry, now=new Date()}) {
-  const ms = expiry * 60000;  // expiry mins in milliseconds
-  const olderThan = new Date(now.getTime() - ms);
-
-  for await (const {path, lockedAt} of storage.lockExpired(olderThan)) {
-    console.info(`unlocking ${path}; lock expired`);
-    if (await storage.unlockFile(path, lockedAt)) {
-      console.debug(`unlocked ${path}`);
-    } else {
-      // this is probably OK; another node likely cleared it
-      console.debug(`could not unlock ${path}`);
-    }
-  }
-}
-
-async function forwardFile(path, forwardURL) {
-  return new Promise((resolve, reject) => {
-    const method = "POST";
-    const headers = {"Content-Type": "application/octet-stream"};
-    const body = createReadStream(path);
-
-    body.on("error", reject);
-    body.on("open", async () => {
-      const res = await fetch(forwardURL, {method, headers, body});
-
-      if (res.ok) {
-        resolve();
-      } else {
-        const status = `${res.status} ${res.statusText}`;
-        reject(new Error(`unexpected ${status} from ${forwardURL}`));
-      }
-    });
-  });
 }

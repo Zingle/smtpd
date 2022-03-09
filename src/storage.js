@@ -16,7 +16,7 @@ export class Storage {
       create table if not exists file (
         name text not null,
         forward_url text not null,
-        locked_at text
+        touched_at text
       );
     `);
 
@@ -49,22 +49,6 @@ export class Storage {
     `);
   }
 
-  async *lockExpired(olderThan) {
-    const sql = SQL`select * from file where locked_at < ${olderThan}`;
-    yield* this.db.each(sql);
-  }
-
-  async lockFile(name) {
-    const result = await this.db.run(SQL`
-      update file
-      set locked_at = datetime()
-      where name = ${name}
-        and locked_at is null
-    `);
-
-    return result.changes > 0;
-  }
-
   async removeFile(name) {
     await this.db.run(SQL`
       delete from file where name = ${name}
@@ -77,22 +61,22 @@ export class Storage {
     `);
   }
 
-  async unlockFile(name, lockedAt=null) {
-    const andLockedAt = lockedAt
-      ? SQL` and locked_at = ${lockedAt}`
-      : SQL``;
+  async *staleFiles(olderThan) {
+    yield* this.db.each(SQL`
+      select * from file
+      where touched_at is null
+         or touched_at < ${olderThan}
+    `);
+  }
 
+  async touchFile(name, touchedAt=null) {
     const result = await this.db.run(SQL`
       update file
-      set locked_at = null
-      where name = ${name}${andLockedAt}
+      set touched_at = datetime()
+      where name = ${name}
+        and (${!touchedAt} or touched_at = ${touchedAt})
     `);
 
     return result.changes > 0;
-  }
-
-  async *unlockedFiles() {
-    const sql = SQL`select * from file where locked_at is null`;
-    yield* this.db.each(sql);
   }
 }
