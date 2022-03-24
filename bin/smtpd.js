@@ -91,6 +91,13 @@ function createSMTPServer({dir, storage, port, ...smtp}) {
 async function createStorage({dir}) {
   const filename = join(dir, "smtpd.db");
   const db = new Database(filename);
-  await Storage.initialize(db);
+
+  try {
+    await db.connected();
+    await Storage.initialize(db);
+  } catch (err) {
+    console.error("error opening", filename, err.message);
+  }
+
   return new Storage(db);
 }

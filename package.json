@@ -21,7 +21,7 @@
   "dependencies": {
     "@zingle/secret": "^0.0.2",
     "@zingle/shape": "^0.0.2",
-    "@zingle/sqlite": "^0.0.4",
+    "@zingle/sqlite": "^0.0.7",
     "@zingle/sqlt": "^0.0.1",
     "@zingle/task": "^0.0.1",
     "bytesized": "^2.0.0",
