@@ -136,7 +136,7 @@ export function requestListener({dir, userdb, secret}) {
 
     if (user) {
       await userdb.removeUser(uri);
-      res.sendAccepted();
+      res.sendNoContent();
     } else {
       res.sendNotFound();
     }
