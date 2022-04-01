@@ -142,3 +142,10 @@ DELETE /user/foo@example.com
 ```
 204 No Content
 ```
+
+TODO
+====
+ * user updates w/ ETag support
+ * ETag support for DELETE
+ * fix missing TLS on HTTP endpoint
+ * /login endpoint to generate JWT
