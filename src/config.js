@@ -23,8 +23,8 @@ export async function read({env, argv}) {
 }
 
 const SMTPDConfigSchema = {
-  dir: process.cwd(),
   secret: randomBytes(8).toString("hex"),
+  db: String,
   http: {
     port: 2500
   },

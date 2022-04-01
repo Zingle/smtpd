@@ -1,13 +1,12 @@
 #!/usr/bin/env node
 
 import http from "http";
-import {join} from "path";
+import mariadb from "mariadb";
 import {SMTPServer} from "smtp-server";
 import {Secret} from "@zingle/secret";
-import {Database} from "@zingle/sqlite";
-import {Storage} from "@zingle/smtpd";
+import {UserDB} from "@zingle/smtpd";
 import Task from "@zingle/task";
-import {readConfig, forwarder} from "@zingle/smtpd";
+import {readConfig} from "@zingle/smtpd";
 import {dataListener, receiptListener, requestListener} from "@zingle/smtpd";
 
 if (!await start(process)) {
@@ -20,22 +19,19 @@ async function start(process) {
     if (!process.env.DEBUG) console.debug = () => {};
 
     const config = await readConfig(process);
-    const {dir} = config;
-    const storage = await createStorage({dir});
+    const {db} = config;
+    const userdb = await createUserDB({db});
     const secret = new Secret(config.secret);
-    const httpServer = createHTTPServer({...config.http, dir, secret, storage});
-    const smtpServer = createSMTPServer({...config.smtp, dir, storage});
-    const forwarder = createForwarder({storage});
+    const httpServer = createHTTPServer({...config.http, userdb, secret});
+    const smtpServer = createSMTPServer({...config.smtp, userdb});
 
     httpServer.listen();
     smtpServer.listen();
-    forwarder.start();
 
     process.on("SIGTERM", () => {
       console.info("shutting down after receiving SIGTERM");
       httpServer.close();
       smtpServer.close();
-      forwarder.stop();
     });
 
     return true;
@@ -45,17 +41,8 @@ async function start(process) {
   }
 }
 
-function createForwarder({storage, interval=300}) {
-  const forward = forwarder({storage});
-  const task = Task(forward, {interval: 1000*interval});
-
-  task.on("error", err => console.error(process.env.DEBUG ? err : err.message));
-
-  return task;
-}
-
-function createHTTPServer({dir, port, storage, secret}) {
-  const listener = requestListener({dir, storage, secret});
+function createHTTPServer({userdb, port, secret}) {
+  const listener = requestListener({userdb, secret});
   const server = http.createServer(listener);
   const {listen} = server;
 
@@ -69,11 +56,11 @@ function createHTTPServer({dir, port, storage, secret}) {
   return server;
 }
 
-function createSMTPServer({dir, storage, port, ...smtp}) {
+function createSMTPServer({userdb, port, ...smtp}) {
   smtp.secure = false;   // security upgraded after connect
   smtp.disabledCommands = ["AUTH"];
-  smtp.onData = dataListener({dir, storage});
-  smtp.onRcptTo = receiptListener({storage});
+  smtp.onData = dataListener({userdb});
+  smtp.onRcptTo = receiptListener({userdb});
 
   const server = new SMTPServer(smtp);
   const {listen} = server;
@@ -88,16 +75,16 @@ function createSMTPServer({dir, storage, port, ...smtp}) {
   return server;
 }
 
-async function createStorage({dir}) {
-  const filename = join(dir, "smtpd.db");
-  const db = new Database(filename);
+async function createUserDB({db}) {
+  const {hostname: host, username: user, password, port, pathname} = new URL(db);
+  const database = pathname.slice(1);
+  const multipleStatements = true;
+  const cn = await mariadb.createConnection({
+    host, user, password, port, database, multipleStatements
+  });
 
-  try {
-    await db.connected();
-    await Storage.initialize(db);
-  } catch (err) {
-    console.error("error opening", filename, err.message);
-  }
+  await cn.query("set session sql_mode = 'ANSI'");
+  await UserDB.initialize(cn);
 
-  return new Storage(db);
+  return new UserDB(cn);
 }

@@ -6,7 +6,7 @@ describe("UserDB", () => {
   let db, cn, query;
 
   beforeEach(() => {
-    query = sinon.spy(async (sql) => {sql});
+    query = sinon.spy(async (sql) => Object.assign([], {sql}));
     cn = {query};
     db = new UserDB(cn);
   });
