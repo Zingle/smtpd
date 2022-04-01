@@ -1,6 +1,6 @@
 {
   "name": "@zingle/smtpd",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "SMTP file dropbox using REST",
   "type": "module",
   "bin": "./bin/smtpd.js",
