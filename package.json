@@ -33,6 +33,7 @@
     "express-semantic-status": "^0.0.2",
     "mailparser": "^3.4.0",
     "mkdirp": "^1.0.4",
+    "mariadb": "^3.0.0",
     "node-fetch": "^3.2.1",
     "smtp-server": "^3.10.0"
   },
