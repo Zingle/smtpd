@@ -89,6 +89,17 @@ export function requestListener({dir, userdb, secret}) {
   app.use(express.json());
   app.use(fullURL());
 
+  app.post("/token", authorize(), async (req, res) => {
+    const token = secret.issueToken();
+    res.set("Content-Type", "application/jwt");
+    res.send(token);
+  });
+
+  app.get("/token", authorize(), async (req, res) => {
+    if (req.jwt) res.json(req.jwt);
+    else res.sendUnauthorized();
+  });
+
   app.post("/user", authorize(), async (req, res) => {
     const {email, drop_url, ...extra} = req.body;
     const uri = `/user/${email}`;
