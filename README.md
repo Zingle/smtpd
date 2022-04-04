@@ -9,16 +9,6 @@ Install the **smtpd** command using **npm**.
 sudo -H npm install -g @zingle/smtpd
 ```
 
-Using smtpd
-===========
-To start the SMTP daemon, run the **smtpd** command, optionally passing a path
-to the configuration file.  If no configuration file is specified, there should
-be a file in the current directory named *smtpd.conf*.
-
-```sh
-smtpd /etc/smtpd.conf
-```
-
 Configuring smtpd
 =================
 The **smtpd** configuration must be a valid JSON file.  The following settings
@@ -142,3 +132,77 @@ DELETE /user/foo@example.com
 ```
 204 No Content
 ```
+
+Using smtpd
+===========
+To start the SMTP daemon, run the **smtpd** command, optionally passing a path
+to the configuration file.  If no configuration file is specified, there should
+be a file in the current directory named *smtpd.conf*.
+
+```sh
+smtpd /etc/smtpd.conf
+```
+
+Integrating smtpd
+=================
+Applications that want to integrate with smtpd can use the recommendations
+outlined below.
+
+Email Address
+-------------
+An email address will have to be assigned to each user.  A DNS MX record must be
+in place to forward mail for the appropriate incoming domain.  The **smtpd**
+server is not a forwarding mail server, so the domain should be dedicated to
+this service.
+
+S3 Inbox
+--------
+Each user will also need an S3 bucket and key prefix where files can be written.
+The bucket must be private, as the **smtpd** server does not pass any flags to
+S3 to mark the uploaded file objects as private.  The key prefix must end in
+slash.
+
+S3 Key Organization
+-------------------
+To make best use of the way S3 buckets and keys work, consider the following URI
+scheme.
+
+```
+s3://$PRIVATE_BUCKET/$ENVIRONMENT/$ORGANIZATION/$USER_ID/
+```
+
+This scheme allows for bucket re-user in multiple environments, end-to-end
+testing with the actual bucket, sharing a destination domain between different
+environments, and efficient scanning.  If necessary, IAM policies can be
+configured to restrict access between environments.
+
+Processing Attachments
+----------------------
+When an attachment is processed by **smtpd**, it is written to S3 using the
+corresponding user's S3 inbox URL as a prefix.  For example, assume the
+following user has been setup.
+
+```js
+{
+  "email": "rich.remer@example.com",
+  "drop_url": "s3://smtpd-inbox/live/zingle/rich.remer/"
+}
+```
+
+An incoming attachment to rich.remer@example.com will be saved to something like
+the following S3 object URL.
+
+```
+s3://smtpd-inbox/live/acme_corp/rich.remer/9D4A387417C993F3
+```
+
+Periodically, the "live" environment should scan for new objects by performing
+a prefix search on `s3://smtpd-inbox/live/`.  When this new object is picked up,
+by using the "acme_corp" organization and the username "rich.remer", the
+application can route to the appropriate internal user.  The application should
+fetch the object from S3, process the data, then delete the object.
+
+Because the URL structure embeds the organization and user into the scheme, it
+is trivial to adjust a job to run for just a single organization or a single
+user.  When developing a UX, this might be taken advantage of to perform
+processing at the click of a button.
