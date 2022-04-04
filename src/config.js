@@ -26,18 +26,21 @@ const SMTPDConfigSchema = {
   secret: randomBytes(8).toString("hex"),
   db: String,
   http: {
-    port: 2500
+    port: 2500,
+    tls: verifyTLS
   },
   smtp: {
     port: 25,
     name: hostname(),
     banner: "send it on over",
     size: bytesized("20 MiB"),
-    tls: function(tls) {
-      if (tls === undefined) return true;
-      if (tls && tls.pfx) return true;
-      if (tls && tls.cert && tls.key) return true;
-      return false;
-    }
+    tls: verifyTLS
   }
 };
+
+function verifyTLS(tls) {
+  if (tls === undefined) return true;
+  if (tls && tls.pfx) return true;
+  if (tls && tls.cert && tls.key) return true;
+  return false;
+}

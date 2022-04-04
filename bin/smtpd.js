@@ -41,15 +41,18 @@ async function start(process) {
   }
 }
 
-function createHTTPServer({userdb, port, secret}) {
+function createHTTPServer({tls, userdb, port, secret}) {
   const listener = requestListener({userdb, secret});
-  const server = http.createServer(listener);
+  const server = tls
+    ? https.createServer(tls, listener)
+    : http.createServer(listener);
   const {listen} = server;
 
   server.listen = function() {
     listen.call(server, port, () => {
       const {port} = server.address();
-      console.info(`listening for HTTP requests on port ${port}`);
+      const protocol = tls ? "HTTPS" : "HTTP";
+      console.info(`listening for ${protocol} requests on port ${port}`);
     });
   };
 
