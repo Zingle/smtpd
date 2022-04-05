@@ -132,24 +132,36 @@ export function requestListener({dir, userdb, secret}) {
     res.sendSeeOther(new URL(uri, req.getFullURL()));
   });
 
-  app.get("/user/:email", authorize(), async (req, res) => {
-    const {email} = req.params;
-    const user = await userdb.getUser(email);
-
-    if (user) res.json(user);
-    else res.sendNotFound();
-  });
-
-  app.delete("/user/:email", authorize(), async (req, res) => {
-    const {email} = req.params;
-    const uri = `/user/${email}`;
-    const user = await userdb.getUser(uri);
-
-    if (user) {
-      await userdb.removeUser(uri);
-      res.sendNoContent();
+  app.get("/user/:email", authorize(), fetchUser(), etag(), async (req, res) => {
+    if (req.user) {
+      res.set("ETag", req.etag);
+      res.json(req.user);
     } else {
       res.sendNotFound();
+    }
+  });
+
+  app.delete("/user/:email", authorize(), fetchUser(), etag(), async (req, res) => {
+    if (req.user) {
+      await userdb.removeUser(req.user.email);
+      res.sendNoContent();
+    } else {
+      req.sendNotFound();
+    }
+  });
+
+  app.put("/user/:email", authorize(), fetchUser(), etag(), async (req, res) => {
+    if (req.user) {
+      const etag = await userdb.updateUser(req.user, req.etag);
+
+      if (etag) {
+        res.set("ETag", etag);
+        res.sendNoContent();
+      } else {
+        res.sendConflict();
+      }
+    } else {
+      req.sendNotFound();
     }
   });
 
@@ -173,7 +185,7 @@ export function requestListener({dir, userdb, secret}) {
       }
 
       next();
-    }
+    };
   }
 
   function authorize() {
@@ -184,6 +196,47 @@ export function requestListener({dir, userdb, secret}) {
 
       // not authorized
       res.sendUnauthorized();
-    }
+    };
+  }
+
+  function etag() {
+    return function etag(req, res, next) {
+      const {method, etag} = req;
+      const GET = method === "GET" || method === "HEAD";
+      const PUT = method === "PUT";
+      const DELETE = method === "DELETE";
+
+      if (GET && etag && etag === req.get("If-None-Match")) {
+        res.sendNotModified();
+      } else if (PUT && etag && req.get("If-None-Match") === "*") {
+        res.sendPreconditionFailed();
+      } else if (PUT && req.get("If-Match") && etag !== req.get("If-Match")) {
+        res.sendPreconditionFailed();
+      } else if (PUT && !req.get("If-Match") && req.get("If-None-Match") !== "*") {
+        res.sendPreconditionRequired();
+      } else if (DELETE && req.get("If-Match") && etag !== req.get("If-Match")) {
+        res.sendPreconditionFailed();
+      } else if (DELETE && !req.get("If-Match")) {
+        res.sendPreconditionRequired();
+      } else {
+        next();
+      }
+    };
+  }
+
+  function fetchUser() {
+    return function fetchUser(req, res, next) {
+      req.user = req.etag = false;
+
+      const {email} = req.params;
+      const {rev, ...user} = await userdb.getUser(email);
+
+      if (user) {
+        req.user = user;
+        req.etag = rev;
+      }
+
+      next();
+    };
   }
 }
