@@ -32,6 +32,19 @@ Example: *mysql://foouser:mysekret@db01.example.com:3306/my_schema*
 Port **smtpd** listens for the administration API.  This setting is optional
 and defaults to 2500.
 
+### http.tls.cert
+Path to TLS cert in PEM format, used to secure HTTP connections.  This setting
+is optional.  If not set, the server will not use transport security.  If set,
+the **http.tls.key** option must also be set.
+
+### http.tls.pfx
+Alternate path to TLS certificate in PKCS#12 binary format.  If set, this
+overrides **http.tls.cert**.  This setting is optional.
+
+### http.tls.key
+Path to TLS private key in PEM format, used to secure HTTP connections.  This
+setting is optional, but must be included for **http.tls.cert** to work.
+
 ### smtp.port
 Port **smtpd** listens for SMTP messages.  This setting is optional and
 defaults to 25.
@@ -47,19 +60,19 @@ Welcome message send to SMTP clients.  This setting is optional.
 Limit on SMTP attachment size.  This setting is optional and defaults to 20
 MiB.
 
-### tls.cert
-Path to TLS cert in PEM format, used to secure HTTP/SMTP connections.  Note,
-the server only supports TLS upgrade.  This setting is optional.  If not set,
-the server will not use encryption.  If set, the **tls.key** option must also
+### smtp.tls.cert
+Path to TLS cert in PEM format, used to secure SMTP connections.  Note, the
+server only supports TLS upgrade.  This setting is optional.  If not set, the
+server will not use encryption.  If set, the **smtp.tls.key** option must also
 be set.
 
-### tls.pfx
+### smtp.tls.pfx
 Alternate path to TLS certificate in PKCS#12 binary format.  If set, this
-overrides **tls.cert**.  This setting is optional.
+overrides **smtp.tls.cert**.  This setting is optional.
 
-### tls.key
-Path to TLS private key in PEM format, used to secure HTTP/SMTP connections.
-This setting is optional, but must be included for **tls.cert** to work.
+### smtp.tls.key
+Path to TLS private key in PEM format, used to secure SMTP connections.  This
+setting is optional, but must be included for **smtp.tls.cert** to work.
 
 User Administration
 ===================
