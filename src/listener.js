@@ -225,7 +225,7 @@ export function requestListener({dir, userdb, secret}) {
   }
 
   function fetchUser() {
-    return function fetchUser(req, res, next) {
+    return async function fetchUser(req, res, next) {
       req.user = req.etag = false;
 
       const {email} = req.params;
