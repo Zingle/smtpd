@@ -2,17 +2,14 @@ import {promises as fs} from "fs";
 import {join} from "path";
 import {randomBytes} from "crypto";
 import concat from "concat-stream";
-import mkdirp from "mkdirp";
 import {simpleParser} from "mailparser";
 import express from "express";
-import basic from "express-basic-auth";
 import {semantics} from "express-semantic-status";
 import fullURL from "express-full-url";
 import Email from "email-addresses";
+import {s3} from "@zingle/smtpd";
 
-export function dataListener({dir, storage}) {
-  const inbox = join(dir, "inbox");
-
+export function dataListener({userdb}) {
   return function onData(stream, session, done) {
     const {id} = session;
 
@@ -39,23 +36,20 @@ export function dataListener({dir, storage}) {
 
         console.debug(`[${id}] parsed mail for ${email}`);
 
-        const user = await storage.getUser(email);
-        const {forward_url} = user;
+        const user = await userdb.getUser(email);
+        const {drop_url} = user;
         const msgid = randomBytes(4).toString("hex");
-
-        await mkdirp(inbox);
 
         for (let i=1,length=attachments.length; i<=length; i++) {
           const name = msgid + randomBytes(4).toString("hex");
           const {content} = attachments[i-1];
-          const path = join(inbox, name);
+          const url = new URL(name, drop_url);
 
-          console.debug(`[${id}] saving attachment for ${email} to ${path}`);
+          console.debug(`[${id}] saving attachment for ${email} to ${url}`);
 
-          await fs.writeFile(path, content);
-          await storage.addFile(name, forward_url);
+          await s3.putObject(url, content);
 
-          console.info(`[${id}] saved attachment for ${email} to ${path}`);
+          console.info(`[${id}] saved attachment for ${email} to ${url}`);
         }
 
         console.debug(`[${id}] received mail for ${email}`);
@@ -69,14 +63,14 @@ export function dataListener({dir, storage}) {
   }
 }
 
-export function receiptListener({storage}) {
+export function receiptListener({userdb}) {
   return async function onRcptTo(address, session, done) {
     const {id} = session;
     const {address: email} = address;
 
     console.debug(`[${id}] delivery arrived for ${email}`);
 
-    if (await storage.getUser(email)) {
+    if (await userdb.getUser(email)) {
       console.info(`[${id}] accepting delivery for ${email}`);
       done();
     } else {
@@ -86,8 +80,7 @@ export function receiptListener({storage}) {
   };
 }
 
-export function requestListener({dir, storage, secret}) {
-  const inbox = join(dir, "inbox");
+export function requestListener({dir, userdb, secret}) {
   const app = express();
   const unauthorizedResponse = "Unauthorized\n";
 
@@ -96,90 +89,79 @@ export function requestListener({dir, storage, secret}) {
   app.use(express.json());
   app.use(fullURL());
 
-  app.get("/file/:sig", async (req, res) => {
-    const name = secret.verifyMessage(req.params.sig);
-
-    if (name) {
-      const file = await storage.getFile(name);
-
-      if (file) {
-        const path = join(inbox, name);
-        res.sendFile(path);
-      } else {
-        res.sendNotFound();
-      }
-    } else {
-      res.sendUnauthorized();
-    }
+  app.post("/token", authorize(), async (req, res) => {
+    const token = secret.issueToken();
+    res.set("Content-Type", "application/jwt");
+    res.send(token);
   });
 
-  app.delete("/file/:sig", async (req, res) => {
-    const name = secret.verifyMessage(req.params.sig);
-
-    if (name) {
-      const file = await storage.getFile(name);
-
-      if (file) {
-        const path = join(inbox, name);
-        await fs.unlink(path);
-        await storage.removeFile(name);
-        res.sendNoContent();
-      } else {
-        res.sendNotFound();
-      }
-    } else {
-      res.sendUnauthorized();
-    }
+  app.get("/token", authorize(), async (req, res) => {
+    if (req.jwt) res.json(req.jwt);
+    else res.sendUnauthorized();
   });
 
   app.post("/user", authorize(), async (req, res) => {
-    const {email, forward_url, ...extra} = req.body;
+    const {email, drop_url, ...extra} = req.body;
     const uri = `/user/${email}`;
     const extras = Object.keys(extra).join(", ");
     const {address} = Email.parseOneAddress(email) || {};
 
     if (!req.is("json")) return res.sendUnsupportedMediaType();
     if (!email) return res.sendBadRequest("email required");
-    if (!forward_url) return res.sendBadRequest("forward_url required");
+    if (!drop_url) return res.sendBadRequest("drop_url required");
     if (!address) return res.sendBadRequest("invalid email");
     if (extras) return res.sendBadRequest(`invalid key(s): ${extras}`);
+    if (!drop_url.startsWith("s3:")) return res.sendBadRequest("invalid drop URL");
+    if (drop_url.slice(-1) !== "/") return res.sendBadRequest("invalid drop URL");
 
-    try { new URL(forward_url); } catch (err) {
-      return res.sendBadRequest("invalid forward URL");
+    try { new URL(drop_url); } catch (err) {
+      return res.sendBadRequest("invalid drop URL");
     }
 
     // TODO: make this safer with locked updates
     // TODO: for now, just use primitive eventual consistency
-    if (await storage.getUser(address)) {
+    if (await userdb.getUser(address)) {
       return res.sendConflict(`email already exists: ${address}`);
     }
 
-    await storage.addUser({
+    await userdb.addUser({
       email: address, uri,
-      forward_url: new URL(forward_url)
+      drop_url: new URL(drop_url)
     });
 
     res.sendSeeOther(new URL(uri, req.getFullURL()));
   });
 
-  app.get("/user/:email", authorize(), async (req, res) => {
-    const {email} = req.params;
-    const user = await storage.getUser(email);
-
-    if (user) res.json(user);
-    else res.sendNotFound();
-  });
-
-  app.delete("/user/:email", authorize(), async (req, res) => {
-    const {email} = req.params;
-    const uri = `/user/${email}`;
-    const user = await storage.getUser(uri);
-
-    if (user) {
-      await storage.removeUser(uri);
-      res.sendAccepted();
+  app.get("/user/:email", authorize(), fetchUser(), etag(), async (req, res) => {
+    if (req.user) {
+      res.set("ETag", req.etag);
+      res.json(req.user);
     } else {
       res.sendNotFound();
+    }
+  });
+
+  app.delete("/user/:email", authorize(), fetchUser(), etag(), async (req, res) => {
+    if (req.user) {
+      await userdb.removeUser(req.user.email);
+      res.sendNoContent();
+    } else {
+      req.sendNotFound();
+    }
+  });
+
+  app.put("/user/:email", authorize(), fetchUser(), etag(), async (req, res) => {
+    if (req.user) {
+      const etag = await userdb.updateUser(req.user, req.etag);
+
+      if (etag) {
+        res.set("ETag", etag);
+        res.sendNoContent();
+      } else {
+        res.sendConflict();
+      }
+    } else {
+      req.sendNotFound();
     }
   });
 
@@ -203,7 +185,7 @@ export function requestListener({dir, storage, secret}) {
       }
 
       next();
-    }
+    };
   }
 
   function authorize() {
@@ -214,6 +196,47 @@ export function requestListener({dir, storage, secret}) {
 
       // not authorized
       res.sendUnauthorized();
-    }
+    };
+  }
+
+  function etag() {
+    return function etag(req, res, next) {
+      const {method, etag} = req;
+      const GET = method === "GET" || method === "HEAD";
+      const PUT = method === "PUT";
+      const DELETE = method === "DELETE";
+
+      if (GET && etag && etag === req.get("If-None-Match")) {
+        res.sendNotModified();
+      } else if (PUT && etag && req.get("If-None-Match") === "*") {
+        res.sendPreconditionFailed();
+      } else if (PUT && req.get("If-Match") && etag !== req.get("If-Match")) {
+        res.sendPreconditionFailed();
+      } else if (PUT && !req.get("If-Match") && req.get("If-None-Match") !== "*") {
+        res.sendPreconditionRequired();
+      } else if (DELETE && req.get("If-Match") && etag !== req.get("If-Match")) {
+        res.sendPreconditionFailed();
+      } else if (DELETE && !req.get("If-Match")) {
+        res.sendPreconditionRequired();
+      } else {
+        next();
+      }
+    };
+  }
+
+  function fetchUser() {
+    return async function fetchUser(req, res, next) {
+      req.user = req.etag = false;
+
+      const {email} = req.params;
+      const {rev, ...user} = await userdb.getUser(email);
+
+      if (user) {
+        req.user = user;
+        req.etag = rev;
+      }
+
+      next();
+    };
   }
 }
