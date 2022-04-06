@@ -25,6 +25,7 @@ export async function read({env, argv}) {
 const SMTPDConfigSchema = {
   secret: randomBytes(8).toString("hex"),
   db: String,
+  s3: verifyS3,
   http: {
     port: 2500,
     tls: verifyTLS
@@ -37,6 +38,13 @@ const SMTPDConfigSchema = {
     tls: verifyTLS
   }
 };
+
+function verifyS3(s3) {
+  if (s3 === undefined) return true;
+  if (typeof s3.accessKeyId !== "string") return false;
+  if (typeof s3.secretAccessKey !== "string") return false;
+  return true;
+}
 
 function verifyTLS(tls) {
   if (tls === undefined) return true;

@@ -2,12 +2,14 @@
 
 import http from "http";
 import mariadb from "mariadb";
+import S3 from "aws-sdk/clients/s3.js";
 import {SMTPServer} from "smtp-server";
 import {Secret} from "@zingle/secret";
 import {UserDB} from "@zingle/smtpd";
 import Task from "@zingle/task";
 import {readConfig} from "@zingle/smtpd";
 import {dataListener, receiptListener, requestListener} from "@zingle/smtpd";
+import {s3} from "@zingle/smtpd";
 
 if (!await start(process)) {
   console.error("failed to start server");
@@ -24,6 +26,10 @@ async function start(process) {
     const secret = new Secret(config.secret);
     const httpServer = createHTTPServer({...config.http, userdb, secret});
     const smtpServer = createSMTPServer({...config.smtp, userdb});
+
+    if (config.s3) {
+      s3.options.sdk = new S3(config.s3);
+    }
 
     httpServer.listen();
     smtpServer.listen();
