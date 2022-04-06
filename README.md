@@ -86,9 +86,28 @@ The first is to make the request from localhost.  The second is to provide a
 JWT bearer token in the *Authorization* header.  This token must be signed
 using the same secret configured for **smtpd**.
 
-Note: there is not currently support for generating a JWT using **smtpd**.  For
-testing, it is recommended that requests be made from localhost.  Support may
-be added in the future.
+Generate JWT - POST /token
+--------------------------
+Endpoint for generating a JWT which can be used to authorize requests to the
+**smtpd** administration API.  Note, you can use this endpoint from localhost
+to bootstrap a JWT.  Alternatively, you can generate a JWT using some other
+service, then exchange that for another JWT using this endpoint.
+
+```
+POST /login
+```
+
+```
+200 OK
+Content-Type: application/jwt
+
+eTghy2135h...
+```
+
+Retrieve JWT Details - GET /token
+---------------------------------
+Fetch details about the JWT used to authorize this request.  This will return
+the decrypted and decoded JWT as a JSON document.
 
 Create User - POST /user
 ------------------------
@@ -184,7 +203,7 @@ scheme.
 s3://$PRIVATE_BUCKET/$ENVIRONMENT/$ORGANIZATION/$USER_ID/
 ```
 
-This scheme allows for bucket re-user in multiple environments, end-to-end
+This scheme allows for bucket re-use in multiple environments, end-to-end
 testing with the actual bucket, sharing a destination domain between different
 environments, and efficient scanning.  If necessary, IAM policies can be
 configured to restrict access between environments.
