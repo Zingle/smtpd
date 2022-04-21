@@ -1,0 +1,8 @@
+{
+    "appName": "com.medallia.zingle.smtpd",
+    "dockerArtifacts": [
+        {
+            "dockerPath": "medallia/zingle/smtpd",
+        }
+    ]
+}
